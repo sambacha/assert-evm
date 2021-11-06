@@ -1,4 +1,12 @@
 *.log
 .DS_Store
 node_modules
-dist
+!dist
+*.tar.gz
+*.tgz
+cache
+.cache/
+coverage/
+.nyc*
+*.zip
+*.env
