@@ -1,103 +1,129 @@
-# TSDX User Guide
+# assert-evm
 
-Congrats! You just saved yourself hours of work by bootstrapping this project with TSDX. Let’s get you oriented with what’s here and how to use it.
+> chai matchers for evm/ethereum
 
-> This TSDX setup is meant for developing libraries (not apps!) that can be published to NPM. If you’re looking to build a Node app, you could use `ts-node-dev`, plain `ts-node`, or simple `tsc`.
+## Usage
 
-> If you’re new to TypeScript, checkout [this handy cheatsheet](https://devhints.io/typescript)
 
-## Commands
+``` ts
+import chai from "chai";
+import { evm } from "assert-evm";
 
-TSDX scaffolds your new library inside `/src`.
-
-To run TSDX, use:
-
-```bash
-npm start # or yarn start
+chai.use(evm);
 ```
 
-This builds to `/dist` and runs the project in watch mode so any edits you save inside `src` causes a rebuild to `/dist`.
+Below is the list of available matchers:
 
-To do a one-off build, use `npm run build` or `yarn build`.
+### Bignumbers
 
-To run tests, use `npm test` or `yarn test`.
+Testing equality of big numbers:
 
-## Configuration
-
-Code quality is set up for you with `prettier`, `husky`, and `lint-staged`. Adjust the respective fields in `package.json` accordingly.
-
-### Jest
-
-Jest tests are set up to run with `npm test` or `yarn test`.
-
-### Bundle Analysis
-
-[`size-limit`](https://github.com/ai/size-limit) is set up to calculate the real cost of your library with `npm run size` and visualize the bundle with `npm run analyze`.
-
-#### Setup Files
-
-This is the folder structure we set up for you:
-
-```txt
-/src
-  index.tsx       # EDIT THIS
-/test
-  blah.test.tsx   # EDIT THIS
-.gitignore
-package.json
-README.md         # EDIT THIS
-tsconfig.json
+``` ts
+expect(await token.balanceOf(wallet.address)).to.equal(993);
 ```
 
-### Rollup
+Available matchers for BigNumbers are: <span
+class="title-ref">equal</span>, <span class="title-ref">eq</span>, <span
+class="title-ref">above</span>, <span class="title-ref">gt</span>, <span
+class="title-ref">gte</span>, <span class="title-ref">below</span>,
+<span class="title-ref">lt</span>, <span class="title-ref">lte</span>,
+<span class="title-ref">least</span>, <span
+class="title-ref">most</span>, <span class="title-ref">within</span>,
+<span class="title-ref">closeTo</span>.
 
-TSDX uses [Rollup](https://rollupjs.org) as a bundler and generates multiple rollup configs for various module formats and build settings. See [Optimizations](#optimizations) for details.
-
-### TypeScript
-
-`tsconfig.json` is set up to interpret `dom` and `esnext` types, as well as `react` for `jsx`. Adjust according to your needs.
-
-## Continuous Integration
-
-### GitHub Actions
-
-Two actions are added by default:
-
-- `main` which installs deps w/ cache, lints, tests, and builds on all pushes against a Node and OS matrix
-- `size` which comments cost comparison of your library on every pull request using [`size-limit`](https://github.com/ai/size-limit)
-
-## Optimizations
-
-Please see the main `tsdx` [optimizations docs](https://github.com/palmerhq/tsdx#optimizations). In particular, know that you can take advantage of development-only optimizations:
-
-```js
-// ./types/index.d.ts
-declare var __DEV__: boolean;
-
-// inside your code...
-if (__DEV__) {
-  console.log('foo');
-}
+``` ts
+expect(BigNumber.from(100)).to.be.within(BigNumber.from(99), BigNumber.from(101));
+expect(BigNumber.from(100)).to.be.closeTo(BigNumber.from(101), 10);
 ```
 
-You can also choose to install and use [invariant](https://github.com/palmerhq/tsdx#invariant) and [warning](https://github.com/palmerhq/tsdx#warning) functions.
+## Emitting events
 
-## Module Formats
+Testing what events were emitted with what arguments:
 
-CJS, ESModules, and UMD module formats are supported.
+``` ts
+await expect(token.transfer(walletTo.address, 7))
+  .to.emit(token, 'Transfer')
+  .withArgs(wallet.address, walletTo.address, 7);
+```
 
-The appropriate paths are configured in `package.json` and `dist/index.js` accordingly. Please report if any issues are found.
+<div class="note">
 
-## Named Exports
+<div class="title">
 
-Per Palmer Group guidelines, [always use named exports.](https://github.com/palmerhq/typescript#exports) Code split inside your React app instead of your React library.
 
-## Including Styles
+</div>
 
-There are many ways to ship styles, including with CSS-in-JS. TSDX has no opinion on this, configure how you like.
+> Note The matcher will match `indexed` event parameters of type `string` or
+> `bytes` even if the expected argument is not hashed using `keccack256` first.
 
-For vanilla CSS, you can include it at the root directory and add it to the `files` section in your `package.json`, so that it can be imported separately by your users and run through their bundler's loader.
+</div>
 
-## Publishing to NPM
+Testing with indexed bytes or string parameters. These two examples are
+equivalent
 
-We recommend using [np](https://github.com/sindresorhus/np).
+``` ts
+await expect(contract.addAddress("street", "city"))
+  .to.emit(contract, 'AddAddress')
+  .withArgs("street", "city");
+
+const hashedStreet = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("street"));
+const hashedCity = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("city"));
+await expect(contract.addAddress(street, city))
+  .to.emit(contract, 'AddAddress')
+  .withArgs(hashedStreet, hashedCity);
+```
+
+## Called on contract
+
+Testing if function was called on the provided contract:
+
+``` ts
+await token.balanceOf(wallet.address)
+
+expect('balanceOf').to.be.calledOnContract(token);
+```
+
+## Called on contract with arguments
+
+Testing if function with certain arguments was called on provided
+contract:
+
+``` ts
+await token.balanceOf(wallet.address)
+
+expect('balanceOf').to.be.calledOnContractWith(token, [wallet.address]);
+```
+
+### Revert
+
+Testing if transaction was reverted:
+
+``` ts
+await expect(token.transfer(walletTo.address, 1007)).to.be.reverted;
+```
+
+### Revert with message
+
+Testing if transaction was reverted with certain message:
+
+``` ts
+await expect(token.transfer(walletTo.address, 1007))
+  .to.be.revertedWith('Insufficient funds');
+```
+
+### Change ether balance
+
+Testing whether the transaction changes the balance of the account:
+
+``` ts
+await expect(() => wallet.sendTransaction({to: walletTo.address, value: 200}))
+  .to.changeEtherBalance(walletTo, 200);
+
+await expect(await wallet.sendTransaction({to: walletTo.address, value: 200}))
+  .to.changeEtherBalance(walletTo, 200);
+```
+
+## License
+
+MIT,
+Extracted from `ethereum-waffle`, [see original docs](https://ethereum-waffle.readthedocs.io/en/latest/matchers.html)
